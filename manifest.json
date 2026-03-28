@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "AI Chat Navigator Pro",
+  "version": "1.0.0",
+  "description": "DeepSeek风格的对话侧边导航栏，支持ChatGPT、Gemini、Claude和通义千问",
+  "author": "Derzisa (Based on original work by 'yijiangj2025-prog')",
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "permissions": [],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://gemini.google.com/*",
+        "https://chat.qwen.ai/*",
+        "https://tongyi.aliyun.com/*",
+        "https://www.qianwen.com/*",
+        "https://qianwen.com/*",
+        "https://claude.ai/*"
+      ],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
