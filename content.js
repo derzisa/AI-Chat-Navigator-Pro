@@ -449,6 +449,7 @@
       result.push({
         id: turn.id,
         title: trunc(text, CONF.titleMax),
+        rawText: text, // <--- 新增这行，把完整的文本存下来
         selector: generateSelector(turn) || `#${CSS.escape(turn.id)}`
       });
 
@@ -665,6 +666,7 @@
           result.push({
             id: target.id,
             title: trunc(text, CONF.titleMax),
+            rawText: text, // <--- 新增这行，把完整的文本存下来
             selector: generateSelector(target) || `#${CSS.escape(target.id)}`
           });
 
@@ -785,6 +787,7 @@
       result.push({
         id: item.id,
         title: trunc(text, CONF.titleMax),
+        rawText: text, // <--- 新增这行，把完整的文本存下来
         selector: generateSelector(item) || `#${CSS.escape(item.id)}`
       });
 
@@ -1094,14 +1097,14 @@
     container.classList.add('sn-expanded');
   }
 
-function doCollapse() {
+  function doCollapse() {
     collapseTimer = null;
     if (!expanded || !isContainerAlive()) return;
-    
+
     // ====== 新增：如果搜索框正在被使用，拒绝收起！ ======
     const searchInput = document.getElementById('sidenav-toc-search');
     if (searchInput && document.activeElement === searchInput) {
-      return; 
+      return;
     }
     // ===================================================
 
@@ -1658,7 +1661,7 @@ function doCollapse() {
   }
 
 
-// ── 升级版：搜索功能事件绑定（防抖 + 全文搜索 + 焦点管理） ──
+  // ── 升级版：搜索功能事件绑定（防抖 + 全文搜索 + 焦点管理） ──
   function bindSearchEvents() {
     if (!container) return;
     const searchInput = container.querySelector('#sidenav-toc-search');
@@ -1672,8 +1675,8 @@ function doCollapse() {
 
       allItems.forEach(el => {
         // 核心改变：去拿咱们刚才存的未阉割版的全文进行比对！
-        const fullText = (el.dataset.rawText || '').toLowerCase(); 
-        
+        const fullText = (el.dataset.rawText || '').toLowerCase();
+
         if (fullText.includes(query)) {
           el.style.display = '';
           visibleCount++;
@@ -1686,8 +1689,8 @@ function doCollapse() {
       if (cnt) {
         cnt.textContent = query ? `${visibleCount} / ${items.length}` : items.length;
       }
-      
-      updateActive(); 
+
+      updateActive();
     }, 666); // 666 毫秒的防抖黄金时间
 
     // 绑定防抖后的函数
@@ -1695,7 +1698,7 @@ function doCollapse() {
 
     searchInput.addEventListener('keydown', (e) => {
       e.stopPropagation(); // 阻止按键冒泡
-      
+
       // 体验优化：按下 Esc 键清空搜索框并让其失去焦点
       if (e.key === 'Escape') {
         searchInput.value = '';
