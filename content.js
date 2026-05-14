@@ -1002,6 +1002,7 @@
         bindClickEvents();
         bindScrollEvents();
         bindSearchEvents();
+        bindKeyboardOverride(); // <--- 新增：按键劫持模块启动
       }
 
       const list = container.querySelector('#sidenav-toc-list');
@@ -1715,6 +1716,110 @@
     });
   }
 
+
+  // ==========================================
+  // 极客模式：按键行为劫持 (真·换行修复版)
+  // ==========================================
+  function bindKeyboardOverride() {
+    document.addEventListener('keydown', (e) => {
+      // 核心避坑 1：防死循环。如果是我们自己伪造的事件，直接放行
+      if (e.__isFake) return;
+
+      // 核心避坑 2：绝对不拦截中文输入法（IME）的组词阶段！(解决吞字/冲突)
+      if (e.isComposing || e.keyCode === 229) return;
+
+      const target = e.target;
+      if (target.tagName !== 'TEXTAREA' && !target.isContentEditable) return;
+
+      const isCtrlOrMeta = e.ctrlKey || e.metaKey;
+
+      // 🎯 场景 1: 拦截单纯的 Enter -> 实现真·换行
+      if (e.key === 'Enter' && !e.shiftKey && !isCtrlOrMeta && !e.altKey) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (target.tagName === 'TEXTAREA') {
+          // 【对付 ChatGPT / Gemini 的纯文本域】
+          // 使用底层原生命令，完美模拟人类输入，框架的虚拟 DOM 必定能同步
+          if (!document.execCommand('insertText', false, '\n')) {
+            // 兜底方案：如果底层命令失效，使用 React 专属的底层 Setter 强制注入
+            const start = target.selectionStart;
+            const end = target.selectionEnd;
+            const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
+            nativeSetter.call(target, target.value.substring(0, start) + "\n" + target.value.substring(end));
+            target.selectionStart = target.selectionEnd = start + 1;
+            target.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+          }
+        } else if (target.isContentEditable) {
+          // 【对付 Claude / Qwen 的富文本区】
+          // 伪造一个 Shift+Enter 发过去，白嫖网页自带的安全换行逻辑
+          const fakeShiftEnter = new KeyboardEvent('keydown', {
+            key: 'Enter',
+            code: 'Enter',
+            keyCode: 13,
+            which: 13,
+            bubbles: true,
+            cancelable: true,
+            shiftKey: true // 骗它这是 Shift + Enter
+          });
+          fakeShiftEnter.__isFake = true; // 打上标记防死循环
+          target.dispatchEvent(fakeShiftEnter);
+        }
+        return;
+      }
+
+      // 🚀 场景 2: 拦截 Ctrl+Enter -> 触发发送
+      if (e.key === 'Enter' && isCtrlOrMeta) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const sendBtn = findSendButton();
+        if (sendBtn && !sendBtn.disabled) {
+          sendBtn.click();
+        } else {
+          // 兜底策略：如果真的找不到发送按钮，发一个原生的纯 Enter 回去触发网站默认发送
+          const fakeEnter = new KeyboardEvent('keydown', {
+            key: 'Enter',
+            code: 'Enter',
+            keyCode: 13,
+            which: 13,
+            bubbles: true,
+            cancelable: true,
+            shiftKey: false
+          });
+          fakeEnter.__isFake = true;
+          target.dispatchEvent(fakeEnter);
+        }
+      }
+    }, true); // true 代表在捕获阶段拦截
+  }
+
+  // 跨平台精准打击发送按钮
+  function findSendButton() {
+    // 1. ChatGPT
+    let btn = document.querySelector('[data-testid="send-button"]');
+    if (btn) return btn;
+
+    // 2. Claude (多做几个适配以防改版)
+    btn = document.querySelector('button[aria-label="Send Message"]') ||
+      document.querySelector('button[aria-label="Send message"]');
+    if (btn) return btn;
+
+    // 3. Gemini
+    btn = document.querySelector('.send-button') ||
+      document.querySelector('button[aria-label="Send message"]');
+    if (btn) return btn;
+
+    // 4. Qwen / 通用特征兜底
+    const allButtons = document.querySelectorAll('button');
+    for (let b of allButtons) {
+      // 找图标是纸飞机或者带有 send 字样的按钮
+      if (b.className.toLowerCase().includes('send') || (b.getAttribute('aria-label') || '').toLowerCase().includes('send')) {
+        return b;
+      }
+    }
+    return null;
+  }
 
 })();
 
